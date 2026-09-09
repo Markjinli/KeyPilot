@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>KeyPilot.DriverBroker.Tests</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\user\KeyPilot.DriverBroker.Protocol\KeyPilot.DriverBroker.Protocol.csproj" />
+    <ProjectReference Include="..\..\user\KeyPilot.DriverBroker\KeyPilot.DriverBroker.csproj" />
+  </ItemGroup>
+</Project>

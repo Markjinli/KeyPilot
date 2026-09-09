@@ -1,0 +1,42 @@
+KeyPilot 1.2.0 本地自用版（Windows x64）
+
+推荐安装方式
+1. 先完整解压 KeyPilot-win-x64.zip；不要只从压缩包预览窗口运行 EXE。
+2. 双击“安装 KeyPilot.cmd”，确认 Windows UAC。
+3. 安装器会先验证整包 SHA-256，再把 App 与 Broker 原子复制到
+   C:\Program Files\KeyPilot，重置并检查 Program Files ACL，最后创建“KeyPilot”开始菜单快捷方式。
+4. 从开始菜单启动 KeyPilot。普通界面仍以普通用户权限运行；只有需要访问驱动时，Broker 才单独请求 UAC。
+
+安装器信任边界
+- 本地自用包和安装引导当前未做商业代码签名。请先核对 ZIP 同级 .sha256，完整解压到自己控制的目录后立即安装。
+- 安装脚本会在复制前后校验整包并保护 Program Files 目标，但若威胁模型包含“同一账户下的恶意进程在 UAC 前后竞态替换未签名解压文件”，仍需改用已签名 MSI/MSIX/Bootstrapper；本地自用脚本不宣称抵抗这一边界。
+
+免安装运行
+- 直接双击“启动 KeyPilot.cmd”或 KeyPilot.App.exe，可以使用采集、配置持久化和用户态动作。
+- 在 Documents/Downloads 等可写目录运行时，Broker 会有意保持 fail-open，不会从不受保护的目录自动提权；启用全局映射后，符合条件的普通键盘扫描码可使用明确标注的用户态兼容抑制。
+
+发布包自检
+- 双击“检查发布包.cmd”；也可以在 PowerShell 运行：
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Verify-Release.ps1" -PackageDirectory "."
+- 检查器会验证 x64 架构、自包含 .NET/Windows App SDK 文件、PRI、版本、Broker 固定哈希、驱动状态和 MANIFEST.sha256 的每一个文件。
+- ZIP 自身的 SHA-256 位于同级 KeyPilot-win-x64.zip.sha256。
+
+首次启动诊断
+- 配置：%LOCALAPPDATA%\KeyPilot\config.json
+- 启动异常日志：%LOCALAPPDATA%\KeyPilot\startup-error.log
+- 运行后端/动作异常日志：%LOCALAPPDATA%\KeyPilot\runtime.log（最大 512 KiB，保留一份轮转文件）
+- 如果窗口没有出现，先运行“检查发布包.cmd”，再查看 startup-error.log。配置损坏时应用不会静默覆盖原文件。
+
+驱动边界（重要）
+- 随包 KeyPilotFilter.sys/CAT 当前未签名、未安装，正常启用 Secure Boot 的 Windows 不会加载它。
+- “安装 KeyPilot.cmd”只安装 App/Broker，不安装驱动，不修改 Secure Boot、TESTSIGNING、BCD 或证书存储。
+- 未安全安装驱动时，宏/程序/网址等用户态动作可以执行。App 会尽力抑制“所有键盘 + 可表示扫描码 + 要求屏蔽”的普通键盘映射；该兼容模式不能区分设备，也不覆盖安全桌面、厂商 HID、Consumer Control 或手柄。发生队列/动作异常时会尝试回放原键并自动关闭全局映射。
+- 当前内核过滤器只覆盖键盘扫描码，不覆盖厂商 HID、Consumer Control 或手柄原输入。
+- 任意厂商 HID 与手柄输出尚未实现；不能由 SendInput 表示的目标会在保存时明确拒绝。
+- 同一键盘的左 Ctrl + 左 Shift + F12 保持 2 秒会让内核清除租约并强制 fail-open；三个键始终透传，保持期间拒绝新租约。松开不会自动恢复旧租约，请将全局映射关闭后重新开启；若状态未恢复，重启 App。
+- 只有在准备好外接输入与 WinRE 恢复手段，并完整阅读 driver-package\TEST-SIGNING.md 后，才应在自有测试设备上考虑测试驱动流程。
+
+卸载
+- 关闭 KeyPilot 后双击“卸载 KeyPilot.cmd”。它只移除 Program Files 中的 App/Broker 和开始菜单快捷方式，不会猜测或移除驱动。
+
+系统要求：Windows 10 1809 或更高版本，x64。

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>KeyPilot.Platform.Windows</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KeyPilot.Core\KeyPilot.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+  </ItemGroup>
+</Project>
+

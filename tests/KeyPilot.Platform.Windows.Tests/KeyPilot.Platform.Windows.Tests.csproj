@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <RootNamespace>KeyPilot.Platform.Windows.Tests</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeyPilot.Core\KeyPilot.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeyPilot.Platform.Windows\KeyPilot.Platform.Windows.csproj" />
+    <ProjectReference Include="..\..\driver\user\KeyPilot.DriverClient\KeyPilot.DriverClient.csproj" />
+    <ProjectReference Include="..\..\driver\user\KeyPilot.DriverBroker.Protocol\KeyPilot.DriverBroker.Protocol.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\InputNodeState.cs" Link="AppLogic\InputNodeState.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\InputEventPhaseTracker.cs" Link="AppLogic\InputEventPhaseTracker.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\DriverSuppressionCoordinator.cs" Link="AppLogic\DriverSuppressionCoordinator.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\BrokerDriverSuppressionCoordinator.cs" Link="AppLogic\BrokerDriverSuppressionCoordinator.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\DriverSuppressionRuleBuilder.cs" Link="AppLogic\DriverSuppressionRuleBuilder.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\MappingExecutionCoordinator.cs" Link="AppLogic\MappingExecutionCoordinator.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\MappingDispatchPolicy.cs" Link="AppLogic\MappingDispatchPolicy.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\WorkspaceConfigurationAdapter.cs" Link="AppLogic\WorkspaceConfigurationAdapter.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\SingleInstanceGate.cs" Link="AppLogic\SingleInstanceGate.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\LatestSaveRevision.cs" Link="AppLogic\LatestSaveRevision.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\InputDiagnosticSession.cs" Link="AppLogic\InputDiagnosticSession.cs" />
+    <Compile Include="..\..\src\KeyPilot.App\Presentation\ShortcutCaptureSession.cs" Link="AppLogic\ShortcutCaptureSession.cs" />
+  </ItemGroup>
+</Project>

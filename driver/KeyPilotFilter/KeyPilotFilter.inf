@@ -1,0 +1,68 @@
+[Version]
+Signature="$WINDOWS NT$"
+Class=Extension
+ClassGuid={e2f84ce7-8efa-411c-aa69-97454ca4cb57}
+Provider=%KeyPilot.Provider%
+ExtensionId={c3772ab9-60e2-41cf-a4cf-62b583fa2a4f}
+DriverVer=08/03/2026,0.2.0.0
+CatalogFile=KeyPilotFilter.cat
+PnpLockdown=1
+
+; DIRID 13 keeps the package isolated in the Driver Store.
+[DestinationDirs]
+DefaultDestDir=13
+
+[SourceDisksNames]
+1=%KeyPilot.DiskName%,,,
+
+[SourceDisksFiles]
+KeyPilotFilter.sys=1
+
+[Manufacturer]
+%KeyPilot.Provider%=KeyPilot.Models,NTamd64.10.0...18362,NTarm64.10.0...18362
+
+[KeyPilot.Models.NTamd64.10.0...18362]
+%KeyPilot.HidKeyboard%=KeyPilot.Filter,HID_DEVICE_SYSTEM_KEYBOARD
+%KeyPilot.LegacyKeyboard%=KeyPilot.Filter,*PNP0303
+
+[KeyPilot.Models.NTarm64.10.0...18362]
+%KeyPilot.HidKeyboard%=KeyPilot.Filter,HID_DEVICE_SYSTEM_KEYBOARD
+%KeyPilot.LegacyKeyboard%=KeyPilot.Filter,*PNP0303
+
+; Extension INFs augment the selected inbox base package; they never replace it.
+[KeyPilot.Filter.NT]
+CopyFiles=KeyPilot.CopyFiles
+
+[KeyPilot.Filter.NT.Services]
+AddService=KeyPilotFilter,,KeyPilot.Service
+
+[KeyPilot.Filter.NT.Wdf]
+KmdfService=KeyPilotFilter,KeyPilot.Wdf
+
+[KeyPilot.Filter.NT.Filters]
+AddFilter=KeyPilotFilter,,KeyPilot.UpperFilter
+
+[KeyPilot.UpperFilter]
+FilterPosition=Upper
+
+[KeyPilot.CopyFiles]
+KeyPilotFilter.sys
+
+[KeyPilot.Service]
+DisplayName=%KeyPilot.ServiceName%
+ServiceType=1
+StartType=3
+; A filter load failure must not be a boot-critical error.
+ErrorControl=0
+ServiceBinary=%13%\KeyPilotFilter.sys
+LoadOrderGroup=Keyboard Port
+
+[KeyPilot.Wdf]
+KmdfLibraryVersion=1.15
+
+[Strings]
+KeyPilot.Provider="KeyPilot"
+KeyPilot.DiskName="KeyPilot keyboard filter installation media"
+KeyPilot.HidKeyboard="KeyPilot HID keyboard upper filter"
+KeyPilot.LegacyKeyboard="KeyPilot legacy keyboard upper filter"
+KeyPilot.ServiceName="KeyPilot fail-open keyboard filter"

@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>KeyPilot.App</RootNamespace>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\KeyPilot.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en-US;zh-CN</SatelliteResourceLanguages>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2.0</InformationalVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KeyPilot.Core\KeyPilot.Core.csproj" />
+    <ProjectReference Include="..\KeyPilot.Platform.Windows\KeyPilot.Platform.Windows.csproj" />
+    <ProjectReference Include="..\..\driver\user\KeyPilot.DriverClient\KeyPilot.DriverClient.csproj" />
+    <ProjectReference Include="..\..\driver\user\KeyPilot.DriverBroker.Protocol\KeyPilot.DriverBroker.Protocol.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\KeyPilot.ico">
+      <Link>KeyPilot.ico</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    The unpackaged WinUI publish targets do not currently add the generated application PRI to
+    ResolvedFileToPublish. The PRI contains App.xbf and MainWindow.xbf; omitting it makes
+    ms-appx:///MainWindow.xaml fail at runtime with XamlParseException 0x802B000A even though the
+    XAML compiler succeeds. Add the generated PRI explicitly after publish items are computed.
+  -->
+  <Target Name="IncludeApplicationPriInPublish"
+          AfterTargets="ComputeFilesToPublish"
+          DependsOnTargets="_GenerateProjectPriFile"
+          Condition="'$(ProjectPriFullPath)' != '' and Exists('$(ProjectPriFullPath)')">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(ProjectPriFullPath)">
+        <RelativePath>$(ProjectPriFileName)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="PruneUnsupportedWinUiMui" AfterTargets="CopyFilesToOutputDirectory">
+    <Exec Command="powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\tools\Prune-WinUiMui.ps1&quot; -Root &quot;$(MSBuildProjectDirectory)\$(OutDir) &quot;" IgnoreStandardErrorWarningFormat="true" />
+  </Target>
+</Project>

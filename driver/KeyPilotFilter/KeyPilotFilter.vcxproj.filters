@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files"><UniqueIdentifier>{A742DB93-C2F3-41A0-A7D3-CF4CA2DF766C}</UniqueIdentifier></Filter>
+    <Filter Include="Header Files"><UniqueIdentifier>{C2666B5E-DF35-4585-AFB2-3A8178FE9FAB}</UniqueIdentifier></Filter>
+    <Filter Include="Driver Files"><UniqueIdentifier>{4037BC64-56B7-493D-8E50-EEEA8F461FDE}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="KeyPilotFilter.c"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="KeyPilotFilter.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\include\KeyPilotProtocol.h"><Filter>Header Files</Filter></ClInclude>
+    <Inf Include="KeyPilotFilter.inf"><Filter>Driver Files</Filter></Inf>
+  </ItemGroup>
+</Project>
+

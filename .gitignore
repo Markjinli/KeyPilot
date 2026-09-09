@@ -1,0 +1,14 @@
+artifacts/
+.dotnet-home/
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pfx
+*.snk
+*.log
+TestResults/
+publish/

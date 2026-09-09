@@ -1,0 +1,81 @@
+<Application
+    x:Class="KeyPilot.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <Color x:Key="KpBackgroundColor">#080D13</Color>
+            <Color x:Key="KpSidebarColor">#0D141D</Color>
+            <Color x:Key="KpPanelColor">#111A24</Color>
+            <Color x:Key="KpPanelSecondaryColor">#16212D</Color>
+            <Color x:Key="KpLineColor">#273645</Color>
+            <Color x:Key="KpTextColor">#EDF4F7</Color>
+            <Color x:Key="KpMutedColor">#8D9BA8</Color>
+            <Color x:Key="KpDimColor">#627180</Color>
+            <Color x:Key="KpMintColor">#62E3C5</Color>
+            <Color x:Key="KpBlueColor">#91A6FF</Color>
+            <Color x:Key="KpAmberColor">#FFC276</Color>
+            <Color x:Key="KpRedColor">#FF838D</Color>
+
+            <SolidColorBrush x:Key="KpBackgroundBrush" Color="{StaticResource KpBackgroundColor}" />
+            <SolidColorBrush x:Key="KpSidebarBrush" Color="{StaticResource KpSidebarColor}" />
+            <SolidColorBrush x:Key="KpPanelBrush" Color="{StaticResource KpPanelColor}" />
+            <SolidColorBrush x:Key="KpPanelSecondaryBrush" Color="{StaticResource KpPanelSecondaryColor}" />
+            <SolidColorBrush x:Key="KpLineBrush" Color="{StaticResource KpLineColor}" />
+            <SolidColorBrush x:Key="KpTextBrush" Color="{StaticResource KpTextColor}" />
+            <SolidColorBrush x:Key="KpMutedBrush" Color="{StaticResource KpMutedColor}" />
+            <SolidColorBrush x:Key="KpDimBrush" Color="{StaticResource KpDimColor}" />
+            <SolidColorBrush x:Key="KpMintBrush" Color="{StaticResource KpMintColor}" />
+            <SolidColorBrush x:Key="KpBlueBrush" Color="{StaticResource KpBlueColor}" />
+            <SolidColorBrush x:Key="KpAmberBrush" Color="{StaticResource KpAmberColor}" />
+            <SolidColorBrush x:Key="KpRedBrush" Color="{StaticResource KpRedColor}" />
+            <SolidColorBrush x:Key="KpOnAccentBrush" Color="#052019" />
+            <SolidColorBrush x:Key="KpOnAccentDeepBrush" Color="#05231B" />
+            <SolidColorBrush x:Key="KpBlueBrightBrush" Color="#C1CAFF" />
+            <SolidColorBrush x:Key="KpAmberBrightBrush" Color="#EBCDA8" />
+            <SolidColorBrush x:Key="KpSelectionBrush" Color="#F5F7FA" />
+            <SolidColorBrush x:Key="KpHairlineBrush" Color="#0FFFFFFF" />
+            <SolidColorBrush x:Key="KpSubtleStrokeBrush" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="KpSubtleFillBrush" Color="#0EFFFFFF" />
+            <SolidColorBrush x:Key="KpFaintFillBrush" Color="#12FFFFFF" />
+            <SolidColorBrush x:Key="KpAccentSoftBrush" Color="#2162E3C5" />
+            <SolidColorBrush x:Key="KpAccentSoftBorderBrush" Color="#2E62E3C5" />
+            <SolidColorBrush x:Key="KpAccentRingBrush" Color="#4D62E3C5" />
+            <SolidColorBrush x:Key="KpAccentFillBrush" Color="#1C62E3C5" />
+            <SolidColorBrush x:Key="KpAccentWashBrush" Color="#0862E3C5" />
+            <SolidColorBrush x:Key="KpBlueSoftBrush" Color="#0B91A6FF" />
+            <SolidColorBrush x:Key="KpBlueSoftBorderBrush" Color="#2191A6FF" />
+            <SolidColorBrush x:Key="KpBlueBadgeBrush" Color="#1F91A6FF" />
+            <SolidColorBrush x:Key="KpBlueBadgeBorderBrush" Color="#3391A6FF" />
+            <SolidColorBrush x:Key="KpAmberSoftBrush" Color="#0AFFC276" />
+            <SolidColorBrush x:Key="KpAmberSoftBorderBrush" Color="#26FFC276" />
+            <SolidColorBrush x:Key="KpTopBarBrush" Color="#D6080D13" />
+            <SolidColorBrush x:Key="KpFooterBrush" Color="#0F171F" />
+            <SolidColorBrush x:Key="KpScrimBrush" Color="#AA030609" />
+            <SolidColorBrush x:Key="KpDeviceShellBrush" Color="#15222E" />
+            <SolidColorBrush x:Key="KpDeviceShellLineBrush" Color="#304252" />
+
+            <Style x:Key="KpButtonStyle" TargetType="Button">
+                <Setter Property="MinHeight" Value="34" />
+                <Setter Property="Padding" Value="12,0" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Background" Value="{StaticResource KpPanelBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource KpLineBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Foreground" Value="{StaticResource KpTextBrush}" />
+                <Setter Property="FontSize" Value="12" />
+            </Style>
+
+            <Style x:Key="KpCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource KpPanelBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource KpFaintFillBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="13" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
