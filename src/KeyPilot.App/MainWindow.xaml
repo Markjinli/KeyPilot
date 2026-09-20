@@ -140,6 +140,7 @@
                             <TextBlock x:Name="MasterStateText" Text="驱动尚未启用" Margin="0,2,0,0" FontSize="8" Foreground="{StaticResource KpAmberBrush}" />
                         </StackPanel>
                         <ToggleSwitch x:Name="MasterToggle" Toggled="MasterToggle_Toggled" OffContent="" OnContent="" ToolTipService.ToolTip="启用全局映射；驱动不可用时使用仅键盘兼容抑制" />
+                        <Button x:Name="TrayMinimizeButton" Content="缩小到托盘" Click="HideToTray_Click" Style="{StaticResource KpButtonStyle}" Padding="10,0" MinHeight="28" FontSize="9" ToolTipService.ToolTip="窗口藏到托盘，映射继续在后台运行" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -493,7 +494,7 @@
                         </Grid>
                         <ScrollViewer x:Name="ProcessLogScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" ViewChanged="ProcessLogScroll_ViewChanged">
                             <StackPanel x:Name="ProcessLogRows" Padding="8,0,8,8" Spacing="1">
-                                <TextBlock x:Name="ProcessLogEmptyText" Text="还没有记录。映射打开后，拦截改写是绿色，鼠标中键这类无法拿走原键的叠加是琥珀色。" FontSize="9" Foreground="{StaticResource KpMutedBrush}" Margin="8,10,8,0" TextWrapping="Wrap" />
+                                <TextBlock x:Name="ProcessLogEmptyText" Text="还没有记录。绿色为拦截并改写，灰色为放行（无映射），琥珀色为无法拦截或放行并叠加。" FontSize="9" Foreground="{StaticResource KpMutedBrush}" Margin="8,10,8,0" TextWrapping="Wrap" />
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>

@@ -139,6 +139,9 @@ public sealed partial class MainWindow : Window
     private bool _captureEnabled = true;
     private bool _suspendWorkspaceCapture = true;
     private bool _isClosing;
+    private bool _exitRequested;
+    private bool _hidingToTray;
+    private TrayIconHost? _trayIcon;
     private bool _configurationWriteBlocked;
     private bool _updatingMasterToggle;
     private bool _updatingProfileSettings;
@@ -180,6 +183,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         TrySetWindowIcon();
+        InitializeTrayIcon();
         VersionText.Text = GetDisplayVersion();
         _inputInjectionMarker = InputInjectionMarker.CreateProcessLocal();
         _xInputMouseMotion = new XInputMouseMotionController(_inputInjectionMarker);
@@ -398,6 +402,109 @@ public sealed partial class MainWindow : Window
             // Icon decoration is non-critical; record it without weakening application startup.
             RuntimeDiagnostics.Write("WindowIcon", exception.Message, exception);
         }
+    }
+
+    private void InitializeTrayIcon()
+    {
+        try
+        {
+            _trayIcon = new TrayIconHost();
+            _trayIcon.OpenRequested += () => DispatcherQueue.TryEnqueue(RestoreFromTray);
+            _trayIcon.ExitRequested += () => DispatcherQueue.TryEnqueue(ExitFromTray);
+            _trayIcon.Show(
+                System.IO.Path.Combine(AppContext.BaseDirectory, "KeyPilot.ico"),
+                "KeyPilot · 单击打开工作台");
+            AppWindow.Closing += AppWindow_Closing;
+            AppWindow.Changed += AppWindow_Changed;
+        }
+        catch (Exception exception)
+        {
+            RuntimeDiagnostics.Write("Tray", exception.Message, exception);
+        }
+    }
+
+    private void HideToTray_Click(object sender, RoutedEventArgs e) => HideToTray();
+
+    private void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        if (_exitRequested || _isClosing)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        HideToTray();
+    }
+
+    private void AppWindow_Changed(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowChangedEventArgs args)
+    {
+        if (_exitRequested || _isClosing || _hidingToTray || !args.DidPresenterChange)
+        {
+            return;
+        }
+
+        if (sender.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter &&
+            presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+        {
+            HideToTray();
+        }
+    }
+
+    private void HideToTray()
+    {
+        if (_exitRequested || _isClosing)
+        {
+            return;
+        }
+
+        _hidingToTray = true;
+        try
+        {
+            AppWindow.Hide();
+        }
+        catch (Exception exception)
+        {
+            RuntimeDiagnostics.Write("Tray", exception.Message, exception);
+        }
+        finally
+        {
+            _hidingToTray = false;
+        }
+    }
+
+    private void RestoreFromTray()
+    {
+        if (_exitRequested || _isClosing)
+        {
+            return;
+        }
+
+        try
+        {
+            AppWindow.Show();
+            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+            {
+                presenter.Restore();
+            }
+
+            Activate();
+        }
+        catch (Exception exception)
+        {
+            RuntimeDiagnostics.Write("Tray", exception.Message, exception);
+        }
+    }
+
+    private void ExitFromTray()
+    {
+        if (_exitRequested)
+        {
+            return;
+        }
+
+        _exitRequested = true;
+        _trayIcon?.Hide();
+        Close();
     }
 
     private static string GetDisplayVersion()
@@ -2126,6 +2233,8 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
+            _trayIcon?.Dispose();
+            _trayIcon = null;
             _xInputMouseMotion.Dispose();
             // WinUI 3 does not guarantee that closing an unpackaged window ends the application
             // lifetime. Exit only after owned workers and native hooks have been released.
@@ -2715,9 +2824,8 @@ public sealed partial class MainWindow : Window
         var compatibilitySuppressed = _compatibilitySuppression.TryConsumeSuppressed(
             source,
             input.IsKeyDown);
-        if (!chordCaptureOwnsInput &&
-            !compatibilitySuppressed &&
-            !_driverSuppression.IsSuppressing(source))
+        var originalWasSuppressed = compatibilitySuppressed || _driverSuppression.IsSuppressing(source);
+        if (!chordCaptureOwnsInput && !originalWasSuppressed)
         {
             if (_armedChordSlot is null && phase == InputEventPhase.Pressed &&
                 MappingDispatchPolicy.HasEnabledSuppressedMapping(_runtimeConfiguration, source))
@@ -2728,10 +2836,13 @@ public sealed partial class MainWindow : Window
             _mappingExecution.TrySubmitPassThrough(normalizedInput);
         }
 
-        RecordInputProcess(
-            normalizedInput,
-            KeyboardKeyResolver.Resolve(input),
-            compatibilitySuppressed || _driverSuppression.IsSuppressing(source));
+        if (!originalWasSuppressed)
+        {
+            RecordInputProcess(
+                normalizedInput,
+                KeyboardKeyResolver.Resolve(input),
+                originalWasSuppressed: false);
+        }
 
         if (!_captureEnabled || _suspendWorkspaceCapture || IsAnyDrawerOpen)
         {
@@ -4504,7 +4615,7 @@ public sealed partial class MainWindow : Window
 
     private void ConditionKind_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_updatingConditionKind)
+        if (_updatingConditionKind || ConditionRestrictedPanel is null)
         {
             return;
         }
@@ -4619,6 +4730,11 @@ public sealed partial class MainWindow : Window
 
     private void UpdateConditionEditorVisibility()
     {
+        if (ConditionRestrictedPanel is null || ConditionHintText is null)
+        {
+            return;
+        }
+
         var restricted = _conditionKind != MappingConditionKind.Always;
         ConditionRestrictedPanel.Visibility = restricted ? Visibility.Visible : Visibility.Collapsed;
         ConditionHintText.Text = _capturingConditionApplication
@@ -4628,8 +4744,16 @@ public sealed partial class MainWindow : Window
                 : "不限制软件时，这条映射在任何前台都生效。";
         if (!restricted)
         {
-            ConditionPickerPanel.Visibility = Visibility.Collapsed;
-            ToggleConditionPickerButton.Content = "选择软件";
+            if (ConditionPickerPanel is not null)
+            {
+                ConditionPickerPanel.Visibility = Visibility.Collapsed;
+            }
+
+            if (ToggleConditionPickerButton is not null)
+            {
+                ToggleConditionPickerButton.Content = "选择软件";
+            }
+
             CancelConditionCapture();
         }
     }
@@ -6355,6 +6479,12 @@ public sealed partial class MainWindow : Window
 
     private void WarnSuppressionUnavailable(InputSource source, string backend)
     {
+        if (backend.StartsWith("键盘", StringComparison.Ordinal) &&
+            (_compatibilitySuppression.IsEnabled || _driverSuppressionActive))
+        {
+            return;
+        }
+
         var warningKey = $"{backend}/{source.CanonicalKey}";
         if (!_suppressionUnavailableWarnings.Add(warningKey))
         {

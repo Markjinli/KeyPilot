@@ -33,7 +33,9 @@ public enum InputProcessResultKind
     Success,
     Overlay,
     Refused,
-    Failed
+    Failed,
+    Pending,
+    Unmapped
 }
 
 public enum InputProcessLogFilter
@@ -59,6 +61,9 @@ public sealed class InputProcessLogEntry
     public string KeyLabel { get; init; } = string.Empty;
 
     public string SourceKey { get; init; } = string.Empty;
+
+    /// <summary>Device family plus control identity; ignores exact vs any-device match mode.</summary>
+    public string CorrelationKey { get; init; } = string.Empty;
 
     public InputProcessDisposition Disposition { get; init; }
 
@@ -145,7 +150,8 @@ public static class InputProcessLogClassifier
         string keyLabel,
         KeyPilotConfiguration configuration,
         bool originalWasSuppressed,
-        DateTimeOffset localTimestamp)
+        DateTimeOffset localTimestamp,
+        Guid? id = null)
     {
         ArgumentNullException.ThrowIfNull(inputEvent);
         ArgumentNullException.ThrowIfNull(inputEvent.Source);
@@ -153,22 +159,29 @@ public static class InputProcessLogClassifier
 
         var mapping = FindEnabledMapping(configuration, inputEvent.Source);
         var disposition = Classify(configuration, inputEvent.Source, originalWasSuppressed);
-        var resultKind = ResultKind(disposition);
+        var resultKind = ResultKind(disposition, mapping, inputEvent.Phase);
         return new InputProcessLogEntry
         {
-            Id = Guid.NewGuid(),
+            Id = id ?? Guid.NewGuid(),
             TimestampLocal = localTimestamp,
             Phase = inputEvent.Phase,
             DeviceKind = inputEvent.Source.Device.Kind,
             DeviceLabel = DeviceLabel(inputEvent.Source.Device.Kind),
             KeyLabel = string.IsNullOrWhiteSpace(keyLabel) ? "未知" : keyLabel.Trim(),
             SourceKey = inputEvent.Source.CanonicalKey,
+            CorrelationKey = CorrelationKey(inputEvent.Source),
             Disposition = disposition,
             DispositionLabel = DispositionLabel(disposition),
             ActionSummary = ActionSummary(mapping, disposition),
             ResultKind = resultKind,
             ResultLabel = ResultLabel(resultKind)
         };
+    }
+
+    public static string CorrelationKey(InputSource source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return $"{source.Device.Kind}/{source.Control.CanonicalKey}";
     }
 
     public static string DeviceLabel(InputDeviceKind kind) => kind switch
@@ -192,9 +205,9 @@ public static class InputProcessLogClassifier
     public static string DispositionLabel(InputProcessDisposition disposition) => disposition switch
     {
         InputProcessDisposition.InterceptAndRewrite => "拦截并改写",
-        InputProcessDisposition.CannotInterceptOverlay => "无法拦截，已叠加",
-        InputProcessDisposition.KeepOriginalOverlay => "原键放行并叠加",
-        InputProcessDisposition.CannotInterceptRefused => "无法拦截，未改写",
+        InputProcessDisposition.CannotInterceptOverlay => "放行并叠加",
+        InputProcessDisposition.KeepOriginalOverlay => "放行并叠加",
+        InputProcessDisposition.CannotInterceptRefused => "无法拦截",
         InputProcessDisposition.CaptureOnly => "仅采集",
         _ => "放行"
     };
@@ -219,11 +232,6 @@ public static class InputProcessLogClassifier
             disposition is InputProcessDisposition.PassThrough or InputProcessDisposition.CaptureOnly)
         {
             return "—";
-        }
-
-        if (disposition == InputProcessDisposition.CannotInterceptRefused)
-        {
-            return "原键无法拿走，映射未执行";
         }
 
         var named = DescribeMappingName(mapping.Name);
@@ -277,21 +285,31 @@ public static class InputProcessLogClassifier
         return string.IsNullOrWhiteSpace(target) ? name.Trim() : target;
     }
 
-    private static InputProcessResultKind ResultKind(InputProcessDisposition disposition) =>
+    private static InputProcessResultKind ResultKind(
+        InputProcessDisposition disposition,
+        InputMapping? mapping,
+        InputEventPhase phase) =>
         disposition switch
         {
+            InputProcessDisposition.InterceptAndRewrite
+                when mapping?.Trigger.Kind == MappingTriggerKind.SinglePress
+                     && phase != InputEventPhase.Released =>
+                InputProcessResultKind.Pending,
             InputProcessDisposition.InterceptAndRewrite => InputProcessResultKind.Success,
             InputProcessDisposition.CannotInterceptOverlay => InputProcessResultKind.Overlay,
             InputProcessDisposition.KeepOriginalOverlay => InputProcessResultKind.Overlay,
             InputProcessDisposition.CannotInterceptRefused => InputProcessResultKind.Refused,
+            InputProcessDisposition.PassThrough => InputProcessResultKind.Unmapped,
             _ => InputProcessResultKind.None
         };
 
     private static string ResultLabel(InputProcessResultKind kind) => kind switch
     {
-        InputProcessResultKind.Success => "成功",
+        InputProcessResultKind.Success => "已执行",
+        InputProcessResultKind.Pending => "待触发",
         InputProcessResultKind.Overlay => "已叠加",
-        InputProcessResultKind.Refused => "未执行",
+        InputProcessResultKind.Refused => "已拒绝",
+        InputProcessResultKind.Unmapped => "无映射",
         InputProcessResultKind.Failed => "失败",
         _ => "—"
     };
@@ -336,19 +354,38 @@ public sealed class InputProcessLog
 
         lock (_gate)
         {
+            var correlationKey = InputProcessLogClassifier.CorrelationKey(inputEvent.Source);
             if (_entries.Count > 0)
             {
                 var last = _entries[^1];
-                if (string.Equals(last.SourceKey, inputEvent.Source.CanonicalKey, StringComparison.Ordinal)
+                if (string.Equals(last.CorrelationKey, correlationKey, StringComparison.Ordinal)
                     && last.Phase == inputEvent.Phase
                     && Abs(localTimestamp - last.TimestampLocal) <= DedupWindow)
                 {
-                    return null;
+                    var incoming = InputProcessLogClassifier.Classify(
+                        configuration,
+                        inputEvent.Source,
+                        originalWasSuppressed);
+                    if (DispositionRank(incoming) <= DispositionRank(last.Disposition))
+                    {
+                        return null;
+                    }
+
+                    var upgraded = InputProcessLogClassifier.CreateEntry(
+                        inputEvent,
+                        keyLabel,
+                        configuration,
+                        originalWasSuppressed,
+                        last.TimestampLocal,
+                        last.Id);
+                    upgraded.RepeatCount = last.RepeatCount;
+                    _entries[^1] = upgraded;
+                    return upgraded;
                 }
 
                 if (CollapseRepeats
                     && inputEvent.Phase == InputEventPhase.Repeated
-                    && string.Equals(last.SourceKey, inputEvent.Source.CanonicalKey, StringComparison.Ordinal)
+                    && string.Equals(last.CorrelationKey, correlationKey, StringComparison.Ordinal)
                     && last.Phase is InputEventPhase.Pressed or InputEventPhase.Repeated)
                 {
                     last.RepeatCount++;
@@ -395,6 +432,15 @@ public sealed class InputProcessLog
             return _entries.Count == 0 ? null : _entries[^1];
         }
     }
+
+    private static int DispositionRank(InputProcessDisposition disposition) => disposition switch
+    {
+        InputProcessDisposition.InterceptAndRewrite => 4,
+        InputProcessDisposition.KeepOriginalOverlay => 3,
+        InputProcessDisposition.CannotInterceptOverlay => 3,
+        InputProcessDisposition.CannotInterceptRefused => 2,
+        _ => 1
+    };
 
     private static TimeSpan Abs(TimeSpan value) => value < TimeSpan.Zero ? -value : value;
 }

@@ -10,14 +10,17 @@ internal static class InputProcessLogTests
         {
             ("过程日志：映射关闭时记为仅采集", MappingOffIsCaptureOnly),
             ("过程日志：无匹配映射时记为放行", UnmappedIsPassThrough),
-            ("过程日志：键盘拦截成功记为拦截并改写", KeyboardSuppressedIsIntercept),
+            ("过程日志：键盘拦截按下记为待触发", KeyboardSuppressedPressIsPending),
+            ("过程日志：键盘拦截抬起记为已执行", KeyboardSuppressedReleaseIsExecuted),
             ("过程日志：键盘无法真正拦截时拒绝映射", KeyboardUnsuppressedRefuses),
             ("过程日志：键盘保留原键记为叠加", KeyboardKeepOriginalOverlays),
             ("过程日志：鼠标中键叠加无法拦截", MouseOverlayCannotIntercept),
             ("过程日志：鼠标中键若要求拦截则拒绝执行", MouseSuppressRequestIsRefused),
             ("过程日志：注入回声不入日志", InjectedEchoIsIgnored),
             ("过程日志：重复按键默认折叠", RepeatsCollapseOntoPress),
-            ("过程日志：近距重复边沿去重", DuplicateEdgesAreDeduped)
+            ("过程日志：近距重复边沿去重", DuplicateEdgesAreDeduped),
+            ("过程日志：任意键盘与精确设备去重为同一边沿", ExactAndAnyDeviceDedup),
+            ("过程日志：误报拒绝被随后的拦截覆盖", RefusedUpgradesToIntercept)
         };
 
     private static void MappingOffIsCaptureOnly()
@@ -31,11 +34,19 @@ internal static class InputProcessLogTests
     private static void UnmappedIsPassThrough()
     {
         var configuration = Config(mappingEnabled: true);
-        var disposition = InputProcessLogClassifier.Classify(configuration, KeyboardSource(), originalWasSuppressed: false);
-        AssertEqual(InputProcessDisposition.PassThrough, disposition, "disposition");
+        var entry = InputProcessLogClassifier.CreateEntry(
+            Event(KeyboardSource(), InputEventPhase.Pressed),
+            "F1",
+            configuration,
+            originalWasSuppressed: false,
+            DateTimeOffset.Now);
+        AssertEqual(InputProcessDisposition.PassThrough, entry.Disposition, "disposition");
+        AssertEqual("放行", entry.DispositionLabel, "label");
+        AssertEqual("无映射", entry.ResultLabel, "result");
+        AssertEqual("—", entry.ActionSummary, "action");
     }
 
-    private static void KeyboardSuppressedIsIntercept()
+    private static void KeyboardSuppressedPressIsPending()
     {
         var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: true, name: "F1 → Ctrl+C"));
         var entry = InputProcessLogClassifier.CreateEntry(
@@ -47,30 +58,45 @@ internal static class InputProcessLogTests
         AssertEqual(InputProcessDisposition.InterceptAndRewrite, entry.Disposition, "disposition");
         AssertEqual("拦截并改写", entry.DispositionLabel, "label");
         AssertEqual("Ctrl+C", entry.ActionSummary, "action");
-        AssertEqual("成功", entry.ResultLabel, "result");
+        AssertEqual("待触发", entry.ResultLabel, "result");
         AssertEqual("键盘", entry.DeviceLabel, "device");
+    }
+
+    private static void KeyboardSuppressedReleaseIsExecuted()
+    {
+        var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: true, name: "F1 → Ctrl+C"));
+        var entry = InputProcessLogClassifier.CreateEntry(
+            Event(KeyboardSource(), InputEventPhase.Released),
+            "F1",
+            configuration,
+            originalWasSuppressed: true,
+            DateTimeOffset.Now);
+        AssertEqual(InputProcessDisposition.InterceptAndRewrite, entry.Disposition, "disposition");
+        AssertEqual("已执行", entry.ResultLabel, "result");
+        AssertEqual("Ctrl+C", entry.ActionSummary, "action");
     }
 
     private static void KeyboardUnsuppressedRefuses()
     {
-        var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: true));
-        var disposition = InputProcessLogClassifier.Classify(
+        var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: true, name: "F1 → Ctrl+C"));
+        var entry = InputProcessLogClassifier.CreateEntry(
+            Event(KeyboardSource(), InputEventPhase.Pressed),
+            "F1",
             configuration,
-            KeyboardSource(),
-            originalWasSuppressed: false);
-        AssertEqual(InputProcessDisposition.CannotInterceptRefused, disposition, "disposition");
-        AssertEqual("无法拦截，未改写", InputProcessLogClassifier.DispositionLabel(disposition), "label");
+            originalWasSuppressed: false,
+            DateTimeOffset.Now);
+        AssertEqual(InputProcessDisposition.CannotInterceptRefused, entry.Disposition, "disposition");
+        AssertEqual("无法拦截", entry.DispositionLabel, "label");
+        AssertEqual("已拒绝", entry.ResultLabel, "result");
+        AssertEqual("Ctrl+C", entry.ActionSummary, "action");
     }
 
     private static void KeyboardKeepOriginalOverlays()
     {
         var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: false, name: "A → B"));
-        var disposition = InputProcessLogClassifier.Classify(
-            configuration,
-            KeyboardSource(),
-            originalWasSuppressed: false);
+        var disposition = InputProcessLogClassifier.Classify(configuration, KeyboardSource(), originalWasSuppressed: false);
         AssertEqual(InputProcessDisposition.KeepOriginalOverlay, disposition, "disposition");
-        AssertEqual("原键放行并叠加", InputProcessLogClassifier.DispositionLabel(disposition), "label");
+        AssertEqual("放行并叠加", InputProcessLogClassifier.DispositionLabel(disposition), "label");
     }
 
     private static void MouseOverlayCannotIntercept()
@@ -83,7 +109,7 @@ internal static class InputProcessLogTests
             originalWasSuppressed: false,
             DateTimeOffset.Now);
         AssertEqual(InputProcessDisposition.CannotInterceptOverlay, entry.Disposition, "disposition");
-        AssertEqual("无法拦截，已叠加", entry.DispositionLabel, "label");
+        AssertEqual("放行并叠加", entry.DispositionLabel, "label");
         AssertEqual("Win+V", entry.ActionSummary, "action");
         AssertEqual("已叠加", entry.ResultLabel, "result");
         AssertEqual("鼠标", entry.DeviceLabel, "device");
@@ -148,6 +174,70 @@ internal static class InputProcessLogTests
             now.AddMilliseconds(10));
         Assert(dup is null, "duplicate press within 40ms is ignored");
         AssertEqual(1, log.Count, "count");
+    }
+
+    private static void ExactAndAnyDeviceDedup()
+    {
+        var log = new InputProcessLog();
+        var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: true));
+        var now = DateTimeOffset.Now;
+        Assert(log.TryRecord(
+            Event(KeyboardSource(), InputEventPhase.Pressed),
+            "F1",
+            configuration,
+            originalWasSuppressed: true,
+            now) is not null,
+            "any-device");
+        var exact = KeyboardSource() with
+        {
+            Device = KeyboardSource().Device with
+            {
+                MatchMode = DeviceMatchMode.ExactDevice,
+                DeviceId = @"\\?\HID#VID_0001"
+            }
+        };
+        var dup = log.TryRecord(
+            Event(exact, InputEventPhase.Pressed),
+            "F1",
+            configuration,
+            originalWasSuppressed: true,
+            now.AddMilliseconds(10));
+        Assert(dup is null, "exact-device press correlates with any-device");
+        AssertEqual(1, log.Count, "count");
+    }
+
+    private static void RefusedUpgradesToIntercept()
+    {
+        var log = new InputProcessLog();
+        var configuration = Config(mappingEnabled: true, KeyboardMapping(suppressOriginal: true, name: "F1 → Ctrl+C"));
+        var now = DateTimeOffset.Now;
+        var refused = log.TryRecord(
+            Event(KeyboardSource(), InputEventPhase.Pressed),
+            "F1",
+            configuration,
+            originalWasSuppressed: false,
+            now);
+        Assert(refused is not null, "refused");
+        AssertEqual("已拒绝", refused!.ResultLabel, "refused result");
+        var exact = KeyboardSource() with
+        {
+            Device = KeyboardSource().Device with
+            {
+                MatchMode = DeviceMatchMode.ExactDevice,
+                DeviceId = @"\\?\HID#VID_0001"
+            }
+        };
+        var upgraded = log.TryRecord(
+            Event(exact, InputEventPhase.Pressed),
+            "F1",
+            configuration,
+            originalWasSuppressed: true,
+            now.AddMilliseconds(12));
+        Assert(upgraded is not null, "upgrade");
+        AssertEqual(1, log.Count, "still one row");
+        AssertEqual(refused.Id, upgraded!.Id, "same row");
+        AssertEqual("拦截并改写", upgraded.DispositionLabel, "disposition");
+        AssertEqual("待触发", upgraded.ResultLabel, "result");
     }
 
     private static KeyPilotConfiguration Config(bool mappingEnabled, params InputMapping[] mappings)
